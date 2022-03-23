@@ -10,30 +10,36 @@ if(topLevel == null) return;                                            //if can
 folders = FindAllFolders(topLevel, folders);  // call function FindAllFolders
 folders.unshift(topLevel);  // add topLevel folder to beginning the array
 
-// var file = new File(topLevel + '/file.txt');
-
 for(var z=0; z < folders.length; z++){// loop through all subfolders
 
     var fileList = folders[z].getFiles(/\.(jpg|png)$/i); //get a list of all JPG or PNG images in this subfolder
 
-    // folderReg = new RegExp(/[^\/]+(?=\/[^\/]+\/?$)/); //This returns the penultimate folder
-    folderReg = new RegExp(/[^\/]+$/m); //This returns the last folder
-
-    // If file exists, we need to remove it first in order to overwrite its content.
-    // if (file.exists)
-    //     file.remove();
-    // file.open('w');
-    // file.writeln(folderReg.exec(folders[z]));
-    // file.close();
+    folderReg = new RegExp(/[^\/]+$/m); //This returns the last folder in the file path
 
     for(var a=0; a < fileList.length; a++)
         {//loop through all files in folder; 1 at a time
             var docref= app.open(fileList[a]);//open file
-            var doc = app.activeDocument;
+            var doc = app.activeDocument; // get a reference to the current (active) document and store it in a variable named "doc"
 
+            //Specify ouptup directory
             var outputFolder = Folder(topLevel + "/processed/" + folderReg.exec(folders[z]));
             if(!outputFolder.exists) outputFolder.create();
 
+
+            //----------Initial Resizing to lower processing time---------------//
+            var fWidth = 512;
+            var fHeight = 512;
+
+            // do the resizing.  if height < width (landscape) resize based on width.  otherwise, resize based on height
+            if (doc.height < doc.width)
+            {
+                doc.resizeImage(UnitValue(fWidth,"px"),null,null,ResampleMethod.BICUBIC);
+            }
+            else {
+                doc.resizeImage(null,UnitValue(fHeight,"px"),null,ResampleMethod.BICUBIC);
+            }
+
+            // Skip processing if image is already square
             if ((doc.width/doc.height) != 1) {
             
             var Name = fileList[a].name.replace(/\.[^\.]+$/, ''); //regex to get rid of file extension
