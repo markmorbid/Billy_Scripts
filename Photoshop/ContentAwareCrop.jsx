@@ -1,7 +1,34 @@
 #target photoshop;
 app.bringToFront();
 
+/**
+ * Crop Canvas Function from https://stackoverflow.com/a/48242624
+ * Crops the canvas by x number of pixels equally from all sides.
+ * @param {Number} [amountOfPixels=0] - Number of pixels to crop.
+ */
+ function cropCanvas(amountOfPixels) {
+    var document = app.activeDocument; // Assumes a document is active.
+    amountOfPixels = amountOfPixels || 0; // Defaults to zero.
+
+    // Obtain height and width of canvas.
+    var canvasWidth = document.width.value;
+    var canvasHeight = document.height.value;
+
+    // Define the new bounds.
+    var newBounds = [
+        amountOfPixels,
+        amountOfPixels,
+        canvasWidth - amountOfPixels,
+        canvasHeight - amountOfPixels
+    ];
+
+    // Crop the canvas. 
+    document.crop(newBounds);
+}
+
 main(); //call the main function
+
+
 
 function main(){
 var Folders =[];
@@ -67,9 +94,13 @@ for(var z=0; z < Folders.length; z++){// loop through all subfolders
             // do the resizing.  if height < width (landscape) resize based on width.  otherwise, resize based on height
             if (doc.height < doc.width)
             {
+                // Invoke the `cropCanvas` function passing
+                // in the `amountOfPixels` value.
+                cropCanvas(156);
                 doc.resizeImage(null,UnitValue(fWidth,"px"),null,ResampleMethod.BICUBIC);
             }
             else {
+                cropCanvas(156);
                 doc.resizeImage(null,UnitValue(fHeight,"px"),null,ResampleMethod.BICUBIC);
             }
 
