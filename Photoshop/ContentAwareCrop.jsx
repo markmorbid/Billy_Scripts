@@ -4,36 +4,70 @@ app.bringToFront();
 main(); //call the main function
 
 function main(){
-var folders =[];
+var Folders =[];
 var topLevel = Folder.selectDialog ("Please select folder to process"); // select top folder
 if(topLevel == null) return;                                            //if cancelled quit
-folders = FindAllFolders(topLevel, folders);  // call function FindAllFolders
-folders.unshift(topLevel);  // add topLevel folder to beginning the array
+var outputFolder = Folder.selectDialog ("Please select output folder"); // select output folder 
+// var outputFolder = Folder(outputFolderSelect + "/processed/" );
+Folders = FindAllFolders(topLevel, Folders);  // call function FindAllFolders
+Folders.unshift(topLevel);  // add topLevel folder to beginning the array
 
-for(var z=0; z < folders.length; z++){// loop through all subfolders
 
-    var fileList = folders[z].getFiles(/\.(jpg|png)$/i); //get a list of all JPG or PNG images in this subfolder
+var folder_list = new File(outputFolder + '/folder_list.txt');
+var completed_folders = new File(outputFolder + '/completed_folders.txt');
 
-    folderReg = new RegExp(/[^\/]+$/m); //This returns the last folder in the file path
+    // // If folder_list.txt doesn't exist, then create it
+    // if (!folder_list.exists)
+    // {
+    // // folder_list.create();
+    // folder_list.encoding = 'UTF8'; // set to 'UTF8' or 'UTF-8'
+    // folder_list.open('w');
+    // folder_list.writeln(Folders);
+    // folder_list.close();
+    // };
+
+    // If completed_folders.txt doesn't exist, then create it and also make a text file includng all folders (for a quick size comparison to gauge progress)
+    if (!completed_folders.exists)
+    {
+    // completed_folders.create();
+    completed_folders.encoding = 'UTF8'; // set to 'UTF8' or 'UTF-8'
+    folder_list.encoding = 'UTF8'; // set to 'UTF8' or 'UTF-8'
+    folder_list.open('w');
+    folder_list.writeln(Folders);
+    folder_list.close();
+    };
+
+for(var z=0; z < Folders.length; z++){// loop through all subfolders
+
+    completed_folders.open('r');
+    var cf_string = completed_folders.read(); //completed_folders.txt into string
+    completed_folders.close();
+
+    var index = cf_string.indexOf(Folders[z]);
+    if(index == -1){ //if the current folder isn't found, process the files in this folder
+        var fileList = Folders[z].getFiles(/\.(jpg|png)$/i); //get a list of all JPG or PNG images in this subfolder
+
+    folderReg = new RegExp(/[^\/]+$/m); //This returns the last folder in the file path (aka current directory)
 
     for(var a=0; a < fileList.length; a++)
         {//loop through all files in folder; 1 at a time
             var docref= app.open(fileList[a]);//open file
             var doc = app.activeDocument; // get a reference to the current (active) document and store it in a variable named "doc"
 
-            //Specify ouptup directory
-            var outputFolder = Folder(topLevel + "/processed/" + folderReg.exec(folders[z]));
-            if(!outputFolder.exists) outputFolder.create();
+            //Specify output directory
+            // var outputFolder = Folder(topLevel + "/processed/" + folderReg.exec(Folders[z]));
+            var outFolder = Folder(outputFolder + "/processed/" + folderReg.exec(Folders[z]));
+            if(!outFolder.exists) outFolder.create();
 
 
             //----------Initial Resizing to lower processing time---------------//
-            var fWidth = 512;
-            var fHeight = 512;
+            var fWidth = 1024;
+            var fHeight = 1024;
 
             // do the resizing.  if height < width (landscape) resize based on width.  otherwise, resize based on height
             if (doc.height < doc.width)
             {
-                doc.resizeImage(UnitValue(fWidth,"px"),null,null,ResampleMethod.BICUBIC);
+                doc.resizeImage(null,UnitValue(fWidth,"px"),null,ResampleMethod.BICUBIC);
             }
             else {
                 doc.resizeImage(null,UnitValue(fHeight,"px"),null,ResampleMethod.BICUBIC);
@@ -166,11 +200,20 @@ else{};// if image is square, skip
     // Restore the ruler units
     app.preferences.rulerUnits = savedRuler;
 
-    var saveFile = File(outputFolder + "/" + fileList[a].name);
+    var saveFile = File(outFolder + "/" + fileList[a].name);
     SaveJPEG(saveFile,8);
     app.activeDocument.close(SaveOptions.DONOTSAVECHANGES);  
 
     } //end filelist loop
+    completed_folders.open("a"); //append current folder to completed_folders.txt
+    completed_folders.write(Folders[z] + "\n");
+    completed_folders.close();
+    } //end of processing files in current folder
+    // var cf_array = cf_string.split('\n')
+
+
+    
+
 } //end subfolders loop
 
 
@@ -199,6 +242,8 @@ jpgSaveOptions.matte = MatteType.NONE;
 jpgSaveOptions.quality = jpegQuality; 
 activeDocument.saveAs(saveFile, jpgSaveOptions, true,Extension.LOWERCASE);
 };
+
+
 
 
 
