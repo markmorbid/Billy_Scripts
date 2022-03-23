@@ -10,6 +10,6 @@ Each image is opened in Photoshop, downscaled to make the longest dimension of t
 I have also added a pre-crop to remove any existing border around the image before processing. Otherwise, the content aware fill will use undesired pixels around the edges and give bad results. 
 
 
-For a dataset of around 165,000 images, it took approximately 22 days to complete. Most of that is because the content aware fill only uses the CPU, but I think the extra time is worth it because the quality of the fianl images is much better when compared to other solutions. I looked into using OpenCV for doing the inpainting around the edges, but in my research I found a few examples of people saying that it had trouble working on the edges around an image and it is primarily focused on inpainting holes within the main part of an image.
+For a dataset of around 165,000 images, it took approximately 22 days to complete. Most of that is because the content aware fill only uses the CPU, but I think the extra time is worth it because the quality of the final images is much better when compared to other solutions. I looked into using OpenCV for doing the inpainting around the edges, but in my research I found a few examples of people saying that it had trouble working on the edges around an image and it is primarily focused on inpainting holes within the main part of an image.
 
 In the future, I will add example pictures to show comparisons of other techniques vs this script to give a better idea of the final result.
