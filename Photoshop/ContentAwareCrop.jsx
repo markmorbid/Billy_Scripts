@@ -9,6 +9,7 @@ var outputFolder = Folder(inputFolder + "/processed");
 if(!outputFolder.exists) outputFolder.create();
 var filelist = inputFolder.getFiles("*.jpg");
 for (var x in filelist){
+    open(filelist[x]);
     var Name = filelist[x].name.replace(/\.[^\.]+$/, '');
     var num = Name.match(/(\d+)[^\d]*$/)[1];
 
@@ -118,15 +119,15 @@ var idsetd = charIDToTypeID( "setd" );
     desc596.putEnumerated( idT, idOrdn, idNone );
 executeAction( idsetd, desc596, DialogModes.NO );
 
-var idhostFocusChanged = stringIDToTypeID( "hostFocusChanged" );
-    var desc597 = new ActionDescriptor();
-    var idactive = stringIDToTypeID( "active" );
-    desc597.putBoolean( idactive, false );
-    var iddontRecord = stringIDToTypeID( "dontRecord" );
-    desc597.putBoolean( iddontRecord, true );
-    var idforceNotify = stringIDToTypeID( "forceNotify" );
-    desc597.putBoolean( idforceNotify, true );
-executeAction( idhostFocusChanged, desc597, DialogModes.NO );
+// var idhostFocusChanged = stringIDToTypeID( "hostFocusChanged" );
+//     var desc597 = new ActionDescriptor();
+//     var idactive = stringIDToTypeID( "active" );
+//     desc597.putBoolean( idactive, false );
+//     var iddontRecord = stringIDToTypeID( "dontRecord" );
+//     desc597.putBoolean( iddontRecord, true );
+//     var idforceNotify = stringIDToTypeID( "forceNotify" );
+//     desc597.putBoolean( idforceNotify, true );
+// executeAction( idhostFocusChanged, desc597, DialogModes.NO );
 
 
     var saveFile = File(outputFolder + "/" + filelist[x].name);
