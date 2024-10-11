@@ -56,7 +56,7 @@ This Tampermonkey script enhances the HailuoAI Video generator website by allowi
 **Additional Notes**:
 - If the script encounters a failed upload, it will remove the image and retry uploading.
 - The queue counter may take a moment to update, and the script checks both the queue size and loading state to ensure prompts are processed accurately.
-- Their 
+- Their website is frequently being updated so this script may break at any time. I'll try to keep it updated for as long as I'm actually using it.
 
 **Troubleshooting**:
 - If you notice any issues, open the console (`F12` in most browsers) to view log messages.
