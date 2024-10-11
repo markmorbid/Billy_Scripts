@@ -277,6 +277,17 @@
         callback();
     }
 
+    // Function to check for the specific error message
+    function checkForErrorMessage(callback) {
+        // Check for the error message element
+        var errorMessageElement = document.querySelector('div.adm-auto-center-content');
+        if (errorMessageElement && errorMessageElement.textContent.includes('An error occurred while generating the content, please try again')) {
+            callback(true);
+        } else {
+            callback(false);
+        }
+    }
+
     function processJsonEntry(entry) {
         if (entry.filename && entry.prompt) {
             // Check if the image has been added via "Add Images"
