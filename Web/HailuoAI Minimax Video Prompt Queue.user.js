@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HailuoAI Minimax Video Prompt Queue
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      3.5
 // @description  Allows queuing multiple prompts and images for HailuoAI Video generator. Visit https://github.com/BillarySquintin/Billy_Scripts/
 // @author       Billary
 // @match        https://hailuoai.video/*
@@ -307,9 +307,11 @@
         element.dispatchEvent(event);
     }
 
-    // Process the queue based on item type
-    // Remove the uploaded image before entering the next prompt
+    // Function to process prompts
     function processPrompts() {
+        // Remove any uploaded image at the start of the cycle
+        removeUploadedImage();
+
         if (promptQueue.length === 0) {
             currentRepeat++;
             if (currentRepeat < totalRepeatCount || totalRepeatCount === Infinity) {
@@ -330,9 +332,6 @@
             }
             return;
         }
-
-        // Remove the uploaded image before entering the next prompt
-        removeUploadedImage();
 
         var item = promptQueue.shift();
 
@@ -425,8 +424,9 @@
             setTimeout(callback, 2000);
         });
     }
-    // Function to process image prompt
-    function processImagePrompt(item, callback) {
+    // Updated processImagePrompt function with image removal and retry
+    function processImagePrompt(item, callback, retryCount = 0) {
+        var maxRetries = 10;
         var promptTextarea = document.querySelector('.description_wrap textarea');
         if (!promptTextarea) {
             alert('Could not find prompt textarea on the page.');
@@ -435,6 +435,7 @@
         }
 
         setNativeValue(promptTextarea, item.prompt);
+
         uploadImage(item.file, function(success) {
             if (!success) {
                 alert('Failed to upload image.');
@@ -444,24 +445,52 @@
 
             waitForSubmitButton(function(submitButton) {
                 submitButton.click();
-                // No need to wait for video completion since we are queuing videos
+                // Wait for potential error message
                 setTimeout(function() {
-                    // Proceed to the next prompt without removing the image here
-                    callback();
-                }, 2000);
+                    checkForErrorMessage(function(hasError) {
+                        if (hasError) {
+                            if (retryCount < maxRetries) {
+                                console.log('Error occurred. Retrying prompt in 3 seconds. Retry count: ' + (retryCount + 1));
+                                setTimeout(function() {
+                                    // Remove the image and attempt to upload again
+                                    removeUploadedImage();
+                                    // Open upload pane again if needed
+                                    revealUploadPane(function() {
+                                        processImagePrompt(item, callback, retryCount + 1);
+                                    });
+                                }, 3000);
+                            } else {
+                                console.log('Max retries reached for this prompt. Removing image and moving to next prompt.');
+                                removeUploadedImage();
+                                callback();
+                            }
+                        } else {
+                            // Proceed to the next prompt without removing the image here
+                            callback();
+                        }
+                    });
+                }, 3000);
             });
         });
     }
 
-    // Function to reveal the upload pane
-    function revealUploadPane(callback) {
+    // Updated revealUploadPane function with retry mechanism
+    function revealUploadPane(callback, retryCount = 0) {
+        var maxRetries = 10;
         var uploadTrigger = document.querySelector('.relative.mr-2.cursor-pointer.group');
         if (uploadTrigger) {
             uploadTrigger.click();
             setTimeout(callback, 500); // Adjust delay if necessary
         } else {
-            alert('Could not find the image upload trigger on the page.');
-            callback(false);
+            if (retryCount < maxRetries) {
+                console.log('Upload trigger not found. Retrying to open upload pane. Retry count: ' + (retryCount + 1));
+                setTimeout(function() {
+                    revealUploadPane(callback, retryCount + 1);
+                }, 1000);
+            } else {
+                alert('Could not find the image upload trigger after multiple attempts.');
+                callback(false);
+            }
         }
     }
 
@@ -470,15 +499,27 @@
         var removeButton = document.querySelector('span.hover\\:cursor-pointer');
         if (removeButton) {
             removeButton.click();
+            console.log('Uploaded image removed.');
+        } else {
+            console.log('No uploaded image to remove.');
         }
     }
 
-    // Adjust the uploadImage function to remove unnecessary retries
-    function uploadImage(file, callback) {
+    // Updated uploadImage function with retry mechanism
+    function uploadImage(file, callback, uploadRetryCount = 0) {
+        var maxUploadRetries = 3;
         var uploadInput = document.querySelector('.ant-upload input[type="file"]');
         if (!uploadInput) {
-            alert('Could not find image upload input on the page.');
-            callback(false);
+            console.log('Could not find image upload input on the page.');
+            if (uploadRetryCount < maxUploadRetries) {
+                console.log('Retrying to find the upload input. Retry count: ' + (uploadRetryCount + 1));
+                setTimeout(function() {
+                    uploadImage(file, callback, uploadRetryCount + 1);
+                }, 1000);
+            } else {
+                alert('Failed to find image upload input after multiple attempts.');
+                callback(false);
+            }
             return;
         }
 
@@ -493,15 +534,70 @@
             if (success) {
                 callback(true);
             } else {
-                // If it times out after retries, we can decide whether to skip or retry
-                alert('Image upload failed after multiple attempts.');
-                callback(false);
+                if (uploadRetryCount < maxUploadRetries) {
+                    console.log('Image upload failed. Removing image and retrying upload. Retry count: ' + (uploadRetryCount + 1));
+                    removeUploadedImage();
+                    uploadImage(file, callback, uploadRetryCount + 1);
+                } else {
+                    alert('Image upload failed after multiple attempts.');
+                    callback(false);
+                }
             }
         });
     }
 
-    // Function to wait until the image has finished uploading
-    function waitForImageUpload(callback) {
+    // Updated processImagePrompt function with image removal and retry
+    function processImagePrompt(item, callback, retryCount = 0) {
+        var maxRetries = 10;
+        var promptTextarea = document.querySelector('.description_wrap textarea');
+        if (!promptTextarea) {
+            alert('Could not find prompt textarea on the page.');
+            startButton.disabled = false;
+            return;
+        }
+
+        setNativeValue(promptTextarea, item.prompt);
+
+        uploadImage(item.file, function(success) {
+            if (!success) {
+                alert('Failed to upload image.');
+                callback();
+                return;
+            }
+
+            waitForSubmitButton(function(submitButton) {
+                submitButton.click();
+                // Wait for potential error message
+                setTimeout(function() {
+                    checkForErrorMessage(function(hasError) {
+                        if (hasError) {
+                            if (retryCount < maxRetries) {
+                                console.log('Error occurred. Retrying prompt in 3 seconds. Retry count: ' + (retryCount + 1));
+                                setTimeout(function() {
+                                    // Remove the image and attempt to upload again
+                                    removeUploadedImage();
+                                    // Open upload pane again if needed
+                                    revealUploadPane(function() {
+                                        processImagePrompt(item, callback, retryCount + 1);
+                                    });
+                                }, 3000);
+                            } else {
+                                console.log('Max retries reached for this prompt. Removing image and moving to next prompt.');
+                                removeUploadedImage();
+                                callback();
+                            }
+                        } else {
+                            // Proceed to the next prompt without removing the image here
+                            callback();
+                        }
+                    });
+                }, 3000);
+            });
+        });
+    }
+
+     // Function to wait until the image has finished uploading
+     function waitForImageUpload(callback) {
         var maxRetries = 30; // Adjust retries as necessary
         var retries = 0;
         var checkUpload = setInterval(function() {
@@ -548,6 +644,7 @@
             }
         }, 2000);
     }
+
     // Function to check if the submit button is available
     function isSubmitButtonAvailable() {
         var submitButton = getSubmitButton();
