@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         HailuoAI Minimax Video Prompt Queue
 // @namespace    http://tampermonkey.net/
-// @version      3.5
+// @version      3.6
 // @description  Allows queuing multiple prompts and images for HailuoAI Video generator. Visit https://github.com/BillarySquintin/Billy_Scripts/
 // @author       Billary
 // @match        https://hailuoai.video/*
-// @downloadURL https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
-// @updateURL https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
+// @downloadURL  https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
+// @updateURL    https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
 // @grant        none
 // @license MIT
 // ==/UserScript==
@@ -683,6 +683,141 @@
                 callback(submitButton);
             }
         }, 1000);
+    }
+
+    // Create the "Obtain URLs" button
+    const obtainUrlsButton = document.createElement("button");
+    obtainUrlsButton.innerHTML = "Obtain URLs";
+    obtainUrlsButton.style.position = "fixed";
+    obtainUrlsButton.style.top = "50px";
+    obtainUrlsButton.style.right = "10px";
+    obtainUrlsButton.style.zIndex = "1000";
+    obtainUrlsButton.style.backgroundColor = "#4CAF50";
+    obtainUrlsButton.style.color = "white";
+    obtainUrlsButton.style.border = "none";
+    obtainUrlsButton.style.padding = "10px";
+    obtainUrlsButton.style.borderRadius = "5px";
+    obtainUrlsButton.style.cursor = "pointer";
+    document.body.appendChild(obtainUrlsButton);
+
+    // Add event listener to the "Obtain URLs" button
+    obtainUrlsButton.addEventListener('click', function() {
+        // Disable the button to prevent multiple clicks
+        obtainUrlsButton.disabled = true;
+        obtainUrlsButton.innerHTML = "Processing...";
+
+        // Start processing the videos
+        processVideos(function() {
+            // Re-enable the button after processing
+            obtainUrlsButton.disabled = false;
+            obtainUrlsButton.innerHTML = "Obtain URLs";
+        });
+    });
+
+    // Function to process videos on the page with delay
+    function processVideos(callback) {
+        // Array to hold the video data
+        let videoDataArray = [];
+
+        // Get all video elements
+        let videoElements = Array.from(document.querySelectorAll('div.video-cards'));
+
+        if (videoElements.length === 0) {
+            alert('No videos found on the page.');
+            callback();
+            return;
+        }
+
+        // Helper function to process each video element with delay
+        function processVideoElement(index) {
+            if (index >= videoElements.length) {
+                // All videos processed, save the data and call the callback
+                saveVideoData(videoDataArray);
+                callback();
+                return;
+            }
+
+            const videoElement = videoElements[index];
+
+            // Extract the prompt
+            let promptElement = videoElement.querySelector('.line-clamp-2');
+            let prompt = promptElement ? promptElement.textContent.trim() : '';
+
+            // Get the download button
+            let downloadButton = videoElement.querySelector('div.flex.items-center.mb-2\\.5.cursor-pointer');
+
+            if (downloadButton) {
+                // Simulate a click on the download button to trigger the download logic
+                downloadButton.click();
+
+                // Wait for a brief moment to allow any JavaScript to execute
+                setTimeout(function() {
+                    // Attempt to retrieve the raw video URL
+                    let rawVideoUrl = null;
+
+                    // Get the video tag and replace watermark URL
+                    let videoTag = videoElement.querySelector('video');
+                    if (videoTag) {
+                        let watermarkedUrl = videoTag.getAttribute('src');
+                        if (watermarkedUrl) {
+                            rawVideoUrl = watermarkedUrl.replace('video_watermark', 'video_raw');
+                        }
+                    }
+
+                    if (rawVideoUrl) {
+                        // Add the data to the array
+                        videoDataArray.push({
+                            prompt: prompt,
+                            raw_video_url: rawVideoUrl
+                        });
+                    }
+
+                    // Move to the next video after a 500ms delay
+                    processVideoElement(index + 1);
+                }, 500); // 500ms delay for each video
+            } else {
+                console.log('Download button not found for a video.');
+                // Move to the next video immediately if no download button
+                processVideoElement(index + 1);
+            }
+        }
+
+        // Start processing the first video element
+        processVideoElement(0);
+    }
+
+    // Function to save the video data as a JSON file
+    function saveVideoData(data) {
+        if (data.length === 0) {
+            alert('No video data to save.');
+            return;
+        }
+
+        // Convert the data to JSON format
+        let jsonData = JSON.stringify(data, null, 2);
+
+        // Create a blob from the JSON data
+        let blob = new Blob([jsonData], { type: 'application/json' });
+
+        // Create a download link
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = 'video_data.json';
+
+        // Append the link to the body
+        document.body.appendChild(a);
+
+        // Programmatically click the link to trigger the download
+        a.click();
+
+        // Remove the link from the document
+        document.body.removeChild(a);
+
+        // Revoke the object URL
+        URL.revokeObjectURL(url);
+
+        alert('Video data has been saved as video_data.json');
     }
 
 })();
