@@ -12,6 +12,7 @@ This Tampermonkey script enhances the HailuoAI Video generator website by allowi
 - **Start Prompt Option**: Begin processing from a specific prompt number in the list, ideal for resuming work.
 - **Automatic Queue Management**: Detects queue space availability and auto-submits as space allows, removing images only before the next prompt to prevent interference.
 - **Visual Indicators**: Displays current batch, prompt number, and total prompts in a user-friendly format.
+- **Bulk Download**: Allows selecting and downloading multiple videos at once (including prompts in JSON file). Includes options to download all visible videos, select/deselect individual videos, select videos between two selections, and download only selected videos.
 
 **Usage Instructions**:
 
@@ -52,6 +53,12 @@ This Tampermonkey script enhances the HailuoAI Video generator website by allowi
    - Keep an eye on the queue counter and console logs for any errors or notifications.
    - The script auto-detects when the queue is full and waits until there’s space to continue.
    - You can pause or adjust settings in the panel at any time.
+
+8. **Bulk Download**:
+   - Select/Download All Visible Videos
+   - Checkboxes to select videos
+   - "Select Videos Between" to select all videos between selected checkboxes
+   - All downloaded videos have prompts placed in JSON for easy metadata writing
 
 **Additional Notes**:
 - If the script encounters a failed upload, it will remove the image and retry uploading.
