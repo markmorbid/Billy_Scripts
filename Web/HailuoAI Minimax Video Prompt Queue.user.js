@@ -1,16 +1,15 @@
 // ==UserScript==
-// @name         HailuoAI Minimax Video Prompt Queue
+// @name         HailuoAI Minimax Video Prompt Queue and Bulk Download
 // @namespace    http://tampermonkey.net/
-// @version      3.6
-// @description  Allows queuing multiple prompts and images for HailuoAI Video generator. Visit https://github.com/BillarySquintin/Billy_Scripts/
-// @author       Billary
+// @version      3.7
+// @description  Allows queuing multiple prompts and images for HailuoAI Video generator and adds bulk download functionality. Visit https://github.com/BillarySquintin/Billy_Scripts/
+// @author
 // @match        https://hailuoai.video/*
 // @downloadURL  https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
 // @updateURL    https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
 // @grant        none
 // @license MIT
 // ==/UserScript==
-
 
 (function() {
     'use strict';
@@ -19,26 +18,46 @@
         return;
     }
 
+    // Create a container for the buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.position = 'fixed';
+    buttonContainer.style.top = '10px';
+    buttonContainer.style.left = '0';
+    buttonContainer.style.right = '0';
+    buttonContainer.style.zIndex = '1000';
+    buttonContainer.style.textAlign = 'center';
+    document.body.appendChild(buttonContainer);
+
     // Create the Prompt Queue button
     const queueButton = document.createElement("button");
     queueButton.innerHTML = "Prompt Queue";
-    queueButton.style.position = "fixed";
-    queueButton.style.top = "10px";
-    queueButton.style.right = "10px";
-    queueButton.style.zIndex = "1000";
     queueButton.style.backgroundColor = "#4CAF50";
     queueButton.style.color = "white";
     queueButton.style.border = "none";
     queueButton.style.padding = "10px";
     queueButton.style.borderRadius = "5px";
     queueButton.style.cursor = "pointer";
-    document.body.appendChild(queueButton);
+    queueButton.style.margin = '0 10px';
+    buttonContainer.appendChild(queueButton);
+
+    // Create the Bulk Download button
+    const bulkDownloadButton = document.createElement("button");
+    bulkDownloadButton.innerHTML = "Bulk Download";
+    bulkDownloadButton.style.backgroundColor = "#4CAF50";
+    bulkDownloadButton.style.color = "white";
+    bulkDownloadButton.style.border = "none";
+    bulkDownloadButton.style.padding = "10px";
+    bulkDownloadButton.style.borderRadius = "5px";
+    bulkDownloadButton.style.cursor = "pointer";
+    bulkDownloadButton.style.margin = '0 10px';
+    buttonContainer.appendChild(bulkDownloadButton);
 
     // Create a container div for the prompt queue
     var container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.top = '50px';
-    container.style.right = '10px';
+    container.style.left = '50%';
+    container.style.transform = 'translateX(-50%)';
     container.style.zIndex = '10000';
     container.style.backgroundColor = 'white';
     container.style.border = '1px solid black';
@@ -435,127 +454,6 @@
             setTimeout(callback, 2000);
         });
     }
-    // Updated processImagePrompt function with image removal and retry
-    function processImagePrompt(item, callback, retryCount = 0) {
-        var maxRetries = 10;
-        var promptTextarea = document.querySelector('.description_wrap textarea');
-        if (!promptTextarea) {
-            alert('Could not find prompt textarea on the page.');
-            startButton.disabled = false;
-            return;
-        }
-
-        setNativeValue(promptTextarea, item.prompt);
-
-        uploadImage(item.file, function(success) {
-            if (!success) {
-                alert('Failed to upload image.');
-                callback();
-                return;
-            }
-
-            waitForSubmitButton(function(submitButton) {
-                submitButton.click();
-                // Wait for potential error message
-                setTimeout(function() {
-                    checkForErrorMessage(function(hasError) {
-                        if (hasError) {
-                            if (retryCount < maxRetries) {
-                                console.log('Error occurred. Retrying prompt in 3 seconds. Retry count: ' + (retryCount + 1));
-                                setTimeout(function() {
-                                    // Remove the image and attempt to upload again
-                                    removeUploadedImage();
-                                    // Open upload pane again if needed
-                                    revealUploadPane(function() {
-                                        processImagePrompt(item, callback, retryCount + 1);
-                                    });
-                                }, 3000);
-                            } else {
-                                console.log('Max retries reached for this prompt. Removing image and moving to next prompt.');
-                                removeUploadedImage();
-                                callback();
-                            }
-                        } else {
-                            // Proceed to the next prompt without removing the image here
-                            callback();
-                        }
-                    });
-                }, 3000);
-            });
-        });
-    }
-
-    // Updated revealUploadPane function with retry mechanism
-    function revealUploadPane(callback, retryCount = 0) {
-        var maxRetries = 10;
-        var uploadTrigger = document.querySelector('.relative.mr-2.cursor-pointer.group');
-        if (uploadTrigger) {
-            uploadTrigger.click();
-            setTimeout(callback, 500); // Adjust delay if necessary
-        } else {
-            if (retryCount < maxRetries) {
-                console.log('Upload trigger not found. Retrying to open upload pane. Retry count: ' + (retryCount + 1));
-                setTimeout(function() {
-                    revealUploadPane(callback, retryCount + 1);
-                }, 1000);
-            } else {
-                alert('Could not find the image upload trigger after multiple attempts.');
-                callback(false);
-            }
-        }
-    }
-
-    // Function to remove any uploaded image
-    function removeUploadedImage() {
-        var removeButton = document.querySelector('span.hover\\:cursor-pointer');
-        if (removeButton) {
-            removeButton.click();
-            console.log('Uploaded image removed.');
-        } else {
-            console.log('No uploaded image to remove.');
-        }
-    }
-
-    // Updated uploadImage function with retry mechanism
-    function uploadImage(file, callback, uploadRetryCount = 0) {
-        var maxUploadRetries = 3;
-        var uploadInput = document.querySelector('.ant-upload input[type="file"]');
-        if (!uploadInput) {
-            console.log('Could not find image upload input on the page.');
-            if (uploadRetryCount < maxUploadRetries) {
-                console.log('Retrying to find the upload input. Retry count: ' + (uploadRetryCount + 1));
-                setTimeout(function() {
-                    uploadImage(file, callback, uploadRetryCount + 1);
-                }, 1000);
-            } else {
-                alert('Failed to find image upload input after multiple attempts.');
-                callback(false);
-            }
-            return;
-        }
-
-        var dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        uploadInput.files = dataTransfer.files;
-
-        uploadInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-        // Wait for image to finish uploading
-        waitForImageUpload(function(success) {
-            if (success) {
-                callback(true);
-            } else {
-                if (uploadRetryCount < maxUploadRetries) {
-                    console.log('Image upload failed. Removing image and retrying upload. Retry count: ' + (uploadRetryCount + 1));
-                    removeUploadedImage();
-                    uploadImage(file, callback, uploadRetryCount + 1);
-                } else {
-                    alert('Image upload failed after multiple attempts.');
-                    callback(false);
-                }
-            }
-        });
-    }
 
     // Updated processImagePrompt function with image removal and retry
     function processImagePrompt(item, callback, retryCount = 0) {
@@ -607,8 +505,8 @@
         });
     }
 
-     // Function to wait until the image has finished uploading
-     function waitForImageUpload(callback) {
+    // Function to wait until the image has finished uploading
+    function waitForImageUpload(callback) {
         var maxRetries = 30; // Adjust retries as necessary
         var retries = 0;
         var checkUpload = setInterval(function() {
@@ -656,6 +554,78 @@
         }, 2000);
     }
 
+    // Function to remove any uploaded image
+    function removeUploadedImage() {
+        var removeButton = document.querySelector('span.hover\\:cursor-pointer');
+        if (removeButton) {
+            removeButton.click();
+            console.log('Uploaded image removed.');
+        } else {
+            console.log('No uploaded image to remove.');
+        }
+    }
+
+    // Function to reveal the upload pane
+    function revealUploadPane(callback, retryCount = 0) {
+        var maxRetries = 10;
+        var uploadTrigger = document.querySelector('.relative.mr-2.cursor-pointer.group');
+        if (uploadTrigger) {
+            uploadTrigger.click();
+            setTimeout(callback, 500); // Adjust delay if necessary
+        } else {
+            if (retryCount < maxRetries) {
+                console.log('Upload trigger not found. Retrying to open upload pane. Retry count: ' + (retryCount + 1));
+                setTimeout(function() {
+                    revealUploadPane(callback, retryCount + 1);
+                }, 1000);
+            } else {
+                alert('Could not find the image upload trigger after multiple attempts.');
+                callback(false);
+            }
+        }
+    }
+
+    // Function to upload an image
+    function uploadImage(file, callback, uploadRetryCount = 0) {
+        var maxUploadRetries = 3;
+        var uploadInput = document.querySelector('.ant-upload input[type="file"]');
+        if (!uploadInput) {
+            console.log('Could not find image upload input on the page.');
+            if (uploadRetryCount < maxUploadRetries) {
+                console.log('Retrying to find the upload input. Retry count: ' + (uploadRetryCount + 1));
+                setTimeout(function() {
+                    uploadImage(file, callback, uploadRetryCount + 1);
+                }, 1000);
+            } else {
+                alert('Failed to find image upload input after multiple attempts.');
+                callback(false);
+            }
+            return;
+        }
+
+        var dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        uploadInput.files = dataTransfer.files;
+
+        uploadInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // Wait for image to finish uploading
+        waitForImageUpload(function(success) {
+            if (success) {
+                callback(true);
+            } else {
+                if (uploadRetryCount < maxUploadRetries) {
+                    console.log('Image upload failed. Removing image and retrying upload. Retry count: ' + (uploadRetryCount + 1));
+                    removeUploadedImage();
+                    uploadImage(file, callback, uploadRetryCount + 1);
+                } else {
+                    alert('Image upload failed after multiple attempts.');
+                    callback(false);
+                }
+            }
+        });
+    }
+
     // Function to check if the submit button is available
     function isSubmitButtonAvailable() {
         var submitButton = getSubmitButton();
@@ -685,32 +655,172 @@
         }, 1000);
     }
 
-    // Create the "Obtain URLs" button
-    const obtainUrlsButton = document.createElement("button");
-    obtainUrlsButton.innerHTML = "Obtain URLs";
-    obtainUrlsButton.style.position = "fixed";
-    obtainUrlsButton.style.top = "50px";
-    obtainUrlsButton.style.right = "10px";
-    obtainUrlsButton.style.zIndex = "1000";
-    obtainUrlsButton.style.backgroundColor = "#4CAF50";
-    obtainUrlsButton.style.color = "white";
-    obtainUrlsButton.style.border = "none";
-    obtainUrlsButton.style.padding = "10px";
-    obtainUrlsButton.style.borderRadius = "5px";
-    obtainUrlsButton.style.cursor = "pointer";
-    document.body.appendChild(obtainUrlsButton);
+    // BULK DOWNLOAD FUNCTIONALITY STARTS HERE
 
-    // Add event listener to the "Obtain URLs" button
-    obtainUrlsButton.addEventListener('click', function() {
+    // Create a container div for the bulk download
+    var bulkDownloadContainer = document.createElement('div');
+    bulkDownloadContainer.style.position = 'fixed';
+    bulkDownloadContainer.style.top = '50px';
+    bulkDownloadContainer.style.left = '50%';
+    bulkDownloadContainer.style.transform = 'translateX(-50%)';
+    bulkDownloadContainer.style.zIndex = '10000';
+    bulkDownloadContainer.style.backgroundColor = 'white';
+    bulkDownloadContainer.style.border = '1px solid black';
+    bulkDownloadContainer.style.padding = '10px';
+    bulkDownloadContainer.style.maxWidth = '400px';
+    bulkDownloadContainer.style.overflowY = 'auto';
+    bulkDownloadContainer.style.boxShadow = '0px 0px 10px rgba(0,0,0,0.5)';
+    bulkDownloadContainer.style.borderRadius = '8px';
+    bulkDownloadContainer.style.display = 'none';
+
+    // Create a close button for the bulk download container
+    var bulkCloseButton = document.createElement('button');
+    bulkCloseButton.textContent = 'X';
+    bulkCloseButton.style.position = 'absolute';
+    bulkCloseButton.style.top = '5px';
+    bulkCloseButton.style.right = '5px';
+    bulkCloseButton.style.background = 'transparent';
+    bulkCloseButton.style.border = 'none';
+    bulkCloseButton.style.fontSize = '16px';
+    bulkCloseButton.style.cursor = 'pointer';
+    bulkCloseButton.addEventListener('click', function() {
+        bulkDownloadContainer.style.display = 'none';
+    });
+    bulkDownloadContainer.appendChild(bulkCloseButton);
+
+    // Create "Download All Visible Videos" button
+    var downloadAllButton = document.createElement('button');
+    downloadAllButton.textContent = 'Download All Visible Videos';
+    downloadAllButton.style.marginTop = '10px';
+    downloadAllButton.style.padding = '5px 10px';
+    downloadAllButton.style.cursor = 'pointer';
+    bulkDownloadContainer.appendChild(downloadAllButton);
+
+    // Create "Select All Visible" button
+    var selectAllButton = document.createElement('button');
+    selectAllButton.textContent = 'Select All Visible';
+    selectAllButton.style.marginTop = '10px';
+    selectAllButton.style.marginRight = '10px';
+    selectAllButton.style.padding = '5px 10px';
+    selectAllButton.style.cursor = 'pointer';
+    bulkDownloadContainer.appendChild(selectAllButton);
+
+    // Create "Deselect All" button
+    var deselectAllButton = document.createElement('button');
+    deselectAllButton.textContent = 'Deselect All';
+    deselectAllButton.style.marginTop = '10px';
+    deselectAllButton.style.marginRight = '10px';
+    deselectAllButton.style.padding = '5px 10px';
+    deselectAllButton.style.cursor = 'pointer';
+    bulkDownloadContainer.appendChild(deselectAllButton);
+
+    // Create "Select Videos Between" button
+    var selectBetweenButton = document.createElement('button');
+    selectBetweenButton.textContent = 'Select Videos Between';
+    selectBetweenButton.style.marginTop = '10px';
+    selectBetweenButton.style.marginRight = '10px';
+    selectBetweenButton.style.padding = '5px 10px';
+    selectBetweenButton.style.cursor = 'pointer';
+    bulkDownloadContainer.appendChild(selectBetweenButton);
+
+    // Create "Download Selected" button
+    var downloadSelectedButton = document.createElement('button');
+    downloadSelectedButton.textContent = 'Download Selected';
+    downloadSelectedButton.style.marginTop = '10px';
+    downloadSelectedButton.style.padding = '5px 10px';
+    downloadSelectedButton.style.cursor = 'pointer';
+    bulkDownloadContainer.appendChild(downloadSelectedButton);
+
+    // Append the bulk download container to the body
+    document.body.appendChild(bulkDownloadContainer);
+
+    // Add event listener to the bulkDownloadButton to toggle the bulk download container
+    bulkDownloadButton.addEventListener('click', function() {
+        bulkDownloadContainer.style.display = (bulkDownloadContainer.style.display === 'none') ? 'block' : 'none';
+        // Add checkboxes to videos
+        addCheckboxesToVideos();
+    });
+
+    // Function to add checkboxes to videos
+    function addCheckboxesToVideos() {
+        let videoElements = document.querySelectorAll('div.video-cards');
+        videoElements.forEach(function(videoElement, index) {
+            // Check if the checkbox is already added
+            if (!videoElement.querySelector('.video-checkbox')) {
+                // Create a checkbox
+                let checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'video-checkbox';
+                checkbox.style.position = 'absolute';
+                checkbox.style.top = '10px';
+                checkbox.style.left = '10px';
+                checkbox.style.zIndex = '100';
+                // Append the checkbox to the video element
+                videoElement.style.position = 'relative'; // Ensure the video element is positioned relative
+                videoElement.appendChild(checkbox);
+            }
+        });
+    }
+
+    // "Select All Visible" button event listener
+    selectAllButton.addEventListener('click', function() {
+        let checkboxes = document.querySelectorAll('.video-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = true;
+        });
+    });
+
+    // "Deselect All" button event listener
+    deselectAllButton.addEventListener('click', function() {
+        let checkboxes = document.querySelectorAll('.video-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = false;
+        });
+    });
+
+    // "Select Videos Between" button event listener
+    selectBetweenButton.addEventListener('click', function() {
+        let checkboxes = Array.from(document.querySelectorAll('.video-checkbox'));
+        let selectedIndexes = checkboxes.map((checkbox, index) => checkbox.checked ? index : -1).filter(index => index !== -1);
+
+        if (selectedIndexes.length < 2) {
+            alert('Please select at least two videos to use this feature.');
+            return;
+        }
+
+        let start = Math.min(...selectedIndexes);
+        let end = Math.max(...selectedIndexes);
+
+        for (let i = start; i <= end; i++) {
+            checkboxes[i].checked = true;
+        }
+    });
+
+    // "Download Selected" button event listener
+    downloadSelectedButton.addEventListener('click', function() {
         // Disable the button to prevent multiple clicks
-        obtainUrlsButton.disabled = true;
-        obtainUrlsButton.innerHTML = "Processing...";
+        downloadSelectedButton.disabled = true;
+        downloadSelectedButton.innerHTML = "Processing...";
+
+        // Start processing the selected videos
+        processSelectedVideos(function() {
+            // Re-enable the button after processing
+            downloadSelectedButton.disabled = false;
+            downloadSelectedButton.innerHTML = "Download Selected";
+        });
+    });
+
+    // "Download All Visible Videos" button event listener
+    downloadAllButton.addEventListener('click', function() {
+        // Disable the button to prevent multiple clicks
+        downloadAllButton.disabled = true;
+        downloadAllButton.innerHTML = "Processing...";
 
         // Start processing the videos
         processVideos(function() {
             // Re-enable the button after processing
-            obtainUrlsButton.disabled = false;
-            obtainUrlsButton.innerHTML = "Obtain URLs";
+            downloadAllButton.disabled = false;
+            downloadAllButton.innerHTML = "Download All Visible Videos";
         });
     });
 
@@ -783,6 +893,82 @@
         }
 
         // Start processing the first video element
+        processVideoElement(0);
+    }
+
+    // Function to process selected videos
+    function processSelectedVideos(callback) {
+        // Array to hold the video data
+        let videoDataArray = [];
+
+        // Get all video elements with selected checkboxes
+        let videoElements = Array.from(document.querySelectorAll('div.video-cards'));
+        let selectedVideoElements = videoElements.filter(function(videoElement) {
+            let checkbox = videoElement.querySelector('.video-checkbox');
+            return checkbox && checkbox.checked;
+        });
+
+        if (selectedVideoElements.length === 0) {
+            alert('No videos selected for download.');
+            callback();
+            return;
+        }
+
+        // Helper function to process each video element with delay
+        function processVideoElement(index) {
+            if (index >= selectedVideoElements.length) {
+                // All videos processed, save the data and call the callback
+                saveVideoData(videoDataArray);
+                callback();
+                return;
+            }
+
+            const videoElement = selectedVideoElements[index];
+
+            // Extract the prompt
+            let promptElement = videoElement.querySelector('.line-clamp-2');
+            let prompt = promptElement ? promptElement.textContent.trim() : '';
+
+            // Get the download button
+            let downloadButton = videoElement.querySelector('div.flex.items-center.mb-2\\.5.cursor-pointer');
+
+            if (downloadButton) {
+                // Simulate a click on the download button to trigger the download logic
+                downloadButton.click();
+
+                // Wait for a brief moment to allow any JavaScript to execute
+                setTimeout(function() {
+                    // Attempt to retrieve the raw video URL
+                    let rawVideoUrl = null;
+
+                    // Get the video tag and replace watermark URL
+                    let videoTag = videoElement.querySelector('video');
+                    if (videoTag) {
+                        let watermarkedUrl = videoTag.getAttribute('src');
+                        if (watermarkedUrl) {
+                            rawVideoUrl = watermarkedUrl.replace('video_watermark', 'video_raw');
+                        }
+                    }
+
+                    if (rawVideoUrl) {
+                        // Add the data to the array
+                        videoDataArray.push({
+                            prompt: prompt,
+                            raw_video_url: rawVideoUrl
+                        });
+                    }
+
+                    // Move to the next video after a 500ms delay
+                    processVideoElement(index + 1);
+                }, 500); // 500ms delay for each video
+            } else {
+                console.log('Download button not found for a video.');
+                // Move to the next video immediately if no download button
+                processVideoElement(index + 1);
+            }
+        }
+
+        // Start processing the first selected video element
         processVideoElement(0);
     }
 
