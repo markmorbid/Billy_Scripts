@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HailuoAI Minimax Video Prompt Queue and Bulk Download
 // @namespace    http://tampermonkey.net/
-// @version      3.9
+// @version      3.11
 // @description  Allows queuing multiple prompts and images for HailuoAI Video generator and adds bulk download functionality with enhanced queue control features. Visit https://github.com/BillarySquintin/Billy_Scripts/
 // @author       Billary
 // @match        https://hailuoai.video/*
@@ -26,7 +26,21 @@
     buttonContainer.style.right = '0';
     buttonContainer.style.zIndex = '1000';
     buttonContainer.style.textAlign = 'center';
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'center';
+    buttonContainer.style.alignItems = 'center';
     document.body.appendChild(buttonContainer);
+
+    // Create the Selected Videos Counter
+    const selectedCounter = document.createElement('div');
+    selectedCounter.textContent = '';
+    selectedCounter.style.backgroundColor = '#007BFF';
+    selectedCounter.style.color = 'white';
+    selectedCounter.style.padding = '5px 10px';
+    selectedCounter.style.borderRadius = '5px';
+    selectedCounter.style.marginRight = '10px';
+    selectedCounter.style.display = 'none'; // Initially hidden
+    buttonContainer.appendChild(selectedCounter);
 
     // Create the Prompt Queue button
     const queueButton = document.createElement("button");
@@ -37,7 +51,7 @@
     queueButton.style.padding = "10px";
     queueButton.style.borderRadius = "5px";
     queueButton.style.cursor = "pointer";
-    queueButton.style.margin = '0 10px';
+    queueButton.style.margin = '0 5px';
     buttonContainer.appendChild(queueButton);
 
     // Create the Bulk Download button
@@ -49,8 +63,101 @@
     bulkDownloadButton.style.padding = "10px";
     bulkDownloadButton.style.borderRadius = "5px";
     bulkDownloadButton.style.cursor = "pointer";
-    bulkDownloadButton.style.margin = '0 10px';
+    bulkDownloadButton.style.margin = '0 5px';
     buttonContainer.appendChild(bulkDownloadButton);
+
+    // Create the Toggle Autoplay button
+    const toggleAutoplayButton = document.createElement("button");
+    toggleAutoplayButton.innerHTML = "Disable Autoplay";
+    toggleAutoplayButton.style.backgroundColor = "#4CAF50";
+    toggleAutoplayButton.style.color = "white";
+    toggleAutoplayButton.style.border = "none";
+    toggleAutoplayButton.style.padding = "10px";
+    toggleAutoplayButton.style.borderRadius = "5px";
+    toggleAutoplayButton.style.cursor = "pointer";
+    toggleAutoplayButton.style.margin = '0 5px';
+    buttonContainer.appendChild(toggleAutoplayButton);
+
+    // Create the Pause All Videos button
+    const pauseAllButton = document.createElement("button");
+    pauseAllButton.innerHTML = "Pause All Videos";
+    pauseAllButton.style.backgroundColor = "#4CAF50";
+    pauseAllButton.style.color = "white";
+    pauseAllButton.style.border = "none";
+    pauseAllButton.style.padding = "10px";
+    pauseAllButton.style.borderRadius = "5px";
+    pauseAllButton.style.cursor = "pointer";
+    pauseAllButton.style.margin = '0 5px';
+    buttonContainer.appendChild(pauseAllButton);
+
+    // Variable to track autoplay state
+    let isAutoplayEnabled = true;
+
+    // Function to update video autoplay settings
+    function updateVideoAutoplay() {
+        let videoElements = document.querySelectorAll('div.video-cards video');
+        videoElements.forEach(function(video) {
+            if (isAutoplayEnabled) {
+                video.setAttribute('autoplay', '');
+                video.muted = true;
+            } else {
+                video.removeAttribute('autoplay');
+                video.pause();
+            }
+        });
+    }
+
+    // Function to handle video hover events
+    function handleVideoHover(event) {
+        if (!isAutoplayEnabled) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }
+
+    // Function to add hover event listeners to video cards
+    function addHoverListeners() {
+        let videoCards = document.querySelectorAll('div.video-cards');
+        videoCards.forEach(function(card) {
+            if (!card.getAttribute('data-hover-listener-added')) {
+                card.addEventListener('mouseenter', handleVideoHover, true);
+                card.addEventListener('mouseover', handleVideoHover, true);
+                card.setAttribute('data-hover-listener-added', 'true');
+            }
+        });
+    }
+
+    // Observer to watch for new video elements being added to the page
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                updateVideoAutoplay();
+                addHoverListeners();
+            }
+        });
+    });
+
+    // Start observing the body for changes in the child elements
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Initial setup
+    updateVideoAutoplay();
+    addHoverListeners();
+
+    // Event listener for Toggle Autoplay button
+    toggleAutoplayButton.addEventListener('click', function() {
+        isAutoplayEnabled = !isAutoplayEnabled;
+        toggleAutoplayButton.innerHTML = isAutoplayEnabled ? "Disable Autoplay" : "Enable Autoplay";
+        updateVideoAutoplay();
+    });
+
+    // Event listener for Pause All Videos button
+    pauseAllButton.addEventListener('click', function() {
+        let videoElements = document.querySelectorAll('div.video-cards video');
+        videoElements.forEach(function(video) {
+            video.pause();
+        });
+    });
 
     // Create a container div for the prompt queue
     var container = document.createElement('div');
@@ -809,6 +916,8 @@
         bulkDownloadContainer.style.display = (bulkDownloadContainer.style.display === 'none') ? 'block' : 'none';
         // Add checkboxes to videos
         addCheckboxesToVideos();
+        // Update the selected counter
+        updateSelectedCounter();
     });
 
     // Function to add checkboxes to videos
@@ -825,11 +934,31 @@
                 checkbox.style.top = '10px';
                 checkbox.style.left = '10px';
                 checkbox.style.zIndex = '100';
+                checkbox.style.transform = 'scale(2)'; // Make the checkbox twice as big
+                // Add event listener to update the counter when checkbox state changes
+                checkbox.addEventListener('change', updateSelectedCounter);
                 // Append the checkbox to the video element
                 videoElement.style.position = 'relative'; // Ensure the video element is positioned relative
                 videoElement.appendChild(checkbox);
             }
         });
+    }
+
+    // Function to update the selected counter
+    function updateSelectedCounter() {
+        let checkboxes = document.querySelectorAll('.video-checkbox');
+        let selectedCount = 0;
+        checkboxes.forEach(function(checkbox) {
+            if (checkbox.checked) {
+                selectedCount++;
+            }
+        });
+        if (selectedCount > 0) {
+            selectedCounter.textContent = 'Selected Videos: ' + selectedCount;
+            selectedCounter.style.display = 'block';
+        } else {
+            selectedCounter.style.display = 'none';
+        }
     }
 
     // "Select All Visible" button event listener
@@ -838,6 +967,7 @@
         checkboxes.forEach(function(checkbox) {
             checkbox.checked = true;
         });
+        updateSelectedCounter();
     });
 
     // "Deselect All" button event listener
@@ -846,6 +976,7 @@
         checkboxes.forEach(function(checkbox) {
             checkbox.checked = false;
         });
+        updateSelectedCounter();
     });
 
     // "Select Videos Between" button event listener
@@ -864,6 +995,7 @@
         for (let i = start; i <= end; i++) {
             checkboxes[i].checked = true;
         }
+        updateSelectedCounter();
     });
 
     // "Download Selected" button event listener
