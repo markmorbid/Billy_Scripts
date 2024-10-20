@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         HailuoAI Minimax Video Prompt Queue and Bulk Download
 // @namespace    http://tampermonkey.net/
-// @version      3.7
-// @description  Allows queuing multiple prompts and images for HailuoAI Video generator and adds bulk download functionality. Visit https://github.com/BillarySquintin/Billy_Scripts/
-// @author
+// @version      3.9
+// @description  Allows queuing multiple prompts and images for HailuoAI Video generator and adds bulk download functionality with enhanced queue control features. Visit https://github.com/BillarySquintin/Billy_Scripts/
+// @author       Billary
 // @match        https://hailuoai.video/*
 // @downloadURL  https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
 // @updateURL    https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
@@ -140,6 +140,31 @@
     promptCounterLabel.style.marginTop = '10px';
     container.appendChild(promptCounterLabel);
 
+    // Create control buttons (Pause, Back, Hold)
+    var controlButtonsContainer = document.createElement('div');
+    controlButtonsContainer.style.marginTop = '10px';
+    container.appendChild(controlButtonsContainer);
+
+    var pauseButton = document.createElement('button');
+    pauseButton.textContent = 'Pause Queue';
+    pauseButton.style.marginRight = '10px';
+    pauseButton.style.padding = '5px 10px';
+    pauseButton.style.cursor = 'pointer';
+    controlButtonsContainer.appendChild(pauseButton);
+
+    var backButton = document.createElement('button');
+    backButton.textContent = 'Go Back One';
+    backButton.style.marginRight = '10px';
+    backButton.style.padding = '5px 10px';
+    backButton.style.cursor = 'pointer';
+    controlButtonsContainer.appendChild(backButton);
+
+    var holdButton = document.createElement('button');
+    holdButton.textContent = 'Hold Current Prompt';
+    holdButton.style.padding = '5px 10px';
+    holdButton.style.cursor = 'pointer';
+    controlButtonsContainer.appendChild(holdButton);
+
     // Create an "Add Images" button
     var addImagesButton = document.createElement('button');
     addImagesButton.textContent = 'Add Images';
@@ -199,6 +224,8 @@
     var currentPromptNumber = 0;
     var totalPromptCount = 0;
     var totalPrompts = 0;
+    var isPaused = false;
+    var isHolding = false;
 
     // Now, when the start button is clicked, we start processing the prompts
     startButton.addEventListener('click', function() {
@@ -339,8 +366,11 @@
 
     // Function to process prompts
     function processPrompts() {
-        // Remove any uploaded image at the start of the cycle
-        removeUploadedImage();
+        // If paused or holding, wait and retry
+        if (isPaused || isHolding) {
+            setTimeout(processPrompts, 1000);
+            return;
+        }
 
         if (promptQueue.length === 0) {
             currentRepeat++;
@@ -370,56 +400,73 @@
 
         // Wait for queue space before proceeding
         waitForQueueSpace(function() {
+            // Remove any uploaded image before processing the next prompt
+            removeUploadedImage();
+
             if (item.type === 'text') {
                 processTextPrompt(item.content, function() {
                     currentPromptNumber++;
-                    processPrompts();
+                    // Wait 10 seconds before proceeding to the next prompt
+                    setTimeout(processPrompts, 10000);
                 });
             } else if (item.type === 'image') {
                 revealUploadPane(function() {
                     processImagePrompt(item, function() {
                         currentPromptNumber++;
-                        processPrompts();
+                        // Wait 10 seconds before proceeding to the next prompt
+                        setTimeout(processPrompts, 10000);
                     });
                 });
             }
         });
     }
 
-    // Adjust the waitForQueueSpace function to handle different queue counter text
+    // Updated waitForQueueSpace function
     function waitForQueueSpace(callback) {
-        var maxQueueSize = 5; // Assuming the max queue size is 5
         var checkQueue = setInterval(function() {
-            var queueCounter = document.querySelector('div.font-medium'); // Adjust selector if necessary
+            // If paused or holding, wait and retry
+            if (isPaused || isHolding) {
+                return; // Do nothing, stay in the interval
+            }
+
             var submitButtonLoading = document.querySelector('img[src="/assets/img/dark-loading.png"]');
 
             var queueReady = false;
             var submitButtonReady = false;
 
-            // Check queue size
-            if (queueCounter) {
-                var queueText = queueCounter.textContent.trim();
-                var match = queueText.match(/(\d+)\s+jobs?\s+in\s+queue/);
+            var currentQueueSize = 0;
+            var maxQueueSize = 5; // Default to 5 if not found
+
+            // Check queue size from the "n / t" format (e.g., "2/5")
+            var queueTextElements = document.querySelectorAll('div.bg-clip-text');
+            var queueTextElement = null;
+            for (var i = 0; i < queueTextElements.length; i++) {
+                var text = queueTextElements[i].textContent.trim();
+                if (/^\d+\s*\/\s*\d+$/.test(text)) {
+                    queueTextElement = queueTextElements[i];
+                    break;
+                }
+            }
+
+            if (queueTextElement) {
+                var queueText = queueTextElement.textContent.trim(); // Should be in the format "2/5"
+                var match = queueText.match(/(\d+)\s*\/\s*(\d+)/);
                 if (match) {
-                    var currentQueueSize = parseInt(match[1], 10);
+                    currentQueueSize = parseInt(match[1], 10);
+                    maxQueueSize = parseInt(match[2], 10);
                     if (currentQueueSize < maxQueueSize) {
                         queueReady = true;
                     } else {
                         console.log('Queue is full (' + currentQueueSize + '/' + maxQueueSize + '). Waiting...');
                     }
-                } else if (queueText.includes('you can queue 5 jobs at once')) {
-                    // Queue is full when this message appears
-                    var currentQueueSize = maxQueueSize;
-                    console.log('Queue is full (' + currentQueueSize + '/' + maxQueueSize + '). Waiting...');
                 } else {
                     console.error('Unable to parse queue size from text:', queueText);
-                    // Assume queue is not full to prevent script from stalling
-                    queueReady = true;
+                    // Assume queue is not ready to prevent script from proceeding erroneously
+                    queueReady = false;
                 }
             } else {
-                // If the queue counter element is not found, assume the queue is empty
-                console.log('Queue counter element not found. Assuming queue is empty.');
-                queueReady = true;
+                console.error('Queue text element not found.');
+                queueReady = false;
             }
 
             // Check if submit button is not loading
@@ -437,6 +484,7 @@
         }, 2000);
     }
 
+
     // Function to process text prompt
     function processTextPrompt(prompt, callback) {
         var promptTextarea = document.querySelector('.description_wrap textarea');
@@ -450,12 +498,12 @@
 
         waitForSubmitButton(function(submitButton) {
             submitButton.click();
-            // No need to wait for video completion since we are queuing videos
-            setTimeout(callback, 2000);
+            // Now, we wait 10 seconds before proceeding to the next prompt (handled in processPrompts)
+            callback();
         });
     }
 
-    // Updated processImagePrompt function with image removal and retry
+    // Updated processImagePrompt function
     function processImagePrompt(item, callback, retryCount = 0) {
         var maxRetries = 10;
         var promptTextarea = document.querySelector('.description_wrap textarea');
@@ -496,7 +544,7 @@
                                 callback();
                             }
                         } else {
-                            // Proceed to the next prompt without removing the image here
+                            // Proceed to the next prompt
                             callback();
                         }
                     });
@@ -654,6 +702,28 @@
             }
         }, 1000);
     }
+
+    // Event listeners for control buttons
+    pauseButton.addEventListener('click', function() {
+        isPaused = !isPaused;
+        pauseButton.textContent = isPaused ? 'Resume Queue' : 'Pause Queue';
+    });
+
+    backButton.addEventListener('click', function() {
+        if (currentPromptNumber > 1) {
+            // Move back one prompt
+            currentPromptNumber -= 2; // Subtract 2 because processPrompts will increment it by 1
+            promptQueue.unshift(originalPromptQueue[currentPromptNumber]); // Re-insert the previous prompt at the beginning
+            updatePromptCounterLabel();
+        } else {
+            alert('Already at the first prompt.');
+        }
+    });
+
+    holdButton.addEventListener('click', function() {
+        isHolding = !isHolding;
+        holdButton.textContent = isHolding ? 'Release Hold' : 'Hold Current Prompt';
+    });
 
     // BULK DOWNLOAD FUNCTIONALITY STARTS HERE
 
