@@ -10,9 +10,9 @@ This Tampermonkey script enhances the HailuoAI Video generator website by allowi
 - **Image Support**: Allows adding images alongside prompts, reading prompts from image metadata if available.
 - **Repeat Functionality**: Set how many times the entire prompt list will repeat; use '~' for infinite repeats.
 - **Start Prompt Option**: Begin processing from a specific prompt number in the list, ideal for resuming work.
-- **Automatic Queue Management**: Detects queue space availability and auto-submits as space allows, removing images only before the next prompt to prevent interference.
+- **Automatic Queue Management**: Detects queue space availability and auto-submits as space allows.
 - **Visual Indicators**: Displays current batch, prompt number, and total prompts in a user-friendly format.
-- **Bulk Download**: Allows selecting and downloading multiple videos at once (including prompts in JSON file). Includes options to download all visible videos, select/deselect individual videos, select videos between two selections, and download only selected videos.
+- **Bulk Download**: Allows selecting and downloading multiple videos at once (also saves prompts in JSON file). Includes options to download all visible videos, select/deselect individual videos, select videos between two selections, and download only selected videos.
 
 **Usage Instructions**:
 
@@ -29,15 +29,18 @@ This Tampermonkey script enhances the HailuoAI Video generator website by allowi
    - This opens a panel where you can enter your queue settings and manage prompts.
 
 4. **Add Prompts**:
-   - **Text Prompts**: Enter each text prompt in the textarea, separated by "---".
-   - **Image Prompts**: Use the "Add Images" button to select images with associated prompts in their metadata. Image paths and prompts can also be manually entered in the textarea if needed, using this format:
+   - **Text Prompts**: Enter each prompt in the textarea, separated by "---".
+   - **Image Prompts**: Both text-only prompts and prompts with images can be added into the box. After adding your image prompts via JSON, make sure you also click the "Add Images" button to select them in the file explorer. Obtaining prompts from image metadata is something I might add in the future.
 
      ```
-     Prompt 1 description here
+     Text-Only Prompt 1 description here
      ---
-     "path/to/image1.png"
+     [
+       { "filename": "image1.png", "prompt": "Image prompt 1 here" },
+       { "filename": "image2.jpg", "prompt": "Image prompt 2 here" }
+     ]
      ---
-     Prompt 3 description here
+     Text-Only Prompt 2 description here
      ```
 
 5. **Set Queue Settings**:
@@ -59,6 +62,10 @@ This Tampermonkey script enhances the HailuoAI Video generator website by allowi
    - Checkboxes to select videos
    - "Select Videos Between" to select all videos between selected checkboxes
    - All downloaded videos have prompts placed in JSON for easy metadata writing
+
+9. **Monitoring Progress**:
+   - Check the queue status and console logs for any errors or notifications.
+   - You can pause, move back to the previous prompt, or hold the queue on the current prompt.
 
 **Additional Notes**:
 - If the script encounters a failed upload, it will remove the image and retry uploading.
