@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HailuoAI Minimax Video Prompt Queue and Bulk Download
 // @namespace    http://tampermonkey.net/
-// @version      3.11
+// @version      3.13
 // @description  Allows queuing multiple prompts and images for HailuoAI Video generator and adds bulk download functionality with enhanced queue control features. Visit https://github.com/BillarySquintin/Billy_Scripts/
 // @author       Billary
 // @match        https://hailuoai.video/*
@@ -544,7 +544,7 @@
             var currentQueueSize = 0;
             var maxQueueSize = 5; // Default to 5 if not found
 
-            // Check queue size from the "n / t" format (e.g., "2/5")
+            // First, try to get the queue size from the queue counter
             var queueTextElements = document.querySelectorAll('div.bg-clip-text');
             var queueTextElement = null;
             for (var i = 0; i < queueTextElements.length; i++) {
@@ -568,12 +568,24 @@
                     }
                 } else {
                     console.error('Unable to parse queue size from text:', queueText);
-                    // Assume queue is not ready to prevent script from proceeding erroneously
-                    queueReady = false;
+                    // Proceed to check number of loading videos
                 }
             } else {
-                console.error('Queue text element not found.');
-                queueReady = false;
+                console.log('Queue text element not found. Will check loading videos.');
+                // Proceed to check number of loading videos
+            }
+
+            // If queueReady is not set yet, check number of loading videos
+            if (!queueReady) {
+                // Count number of loading video elements
+                var loadingVideos = document.querySelectorAll('.creating-progress');
+                currentQueueSize = loadingVideos.length;
+                maxQueueSize = 5; // Assuming max queue size is 5
+                if (currentQueueSize < maxQueueSize) {
+                    queueReady = true;
+                } else {
+                    console.log('Queue is full based on loading videos (' + currentQueueSize + '/' + maxQueueSize + '). Waiting...');
+                }
             }
 
             // Check if submit button is not loading
@@ -592,8 +604,21 @@
     }
 
 
-    // Function to process text prompt
-    function processTextPrompt(prompt, callback) {
+    // Function to check for error messages
+    function checkForErrorMessage(callback) {
+        var errorElement = document.querySelector('.web-toast.error');
+        if (errorElement) {
+            callback(true);
+            // Optionally remove the error element to prevent duplicate detections
+            errorElement.remove();
+        } else {
+            callback(false);
+        }
+    }
+
+    // Updated processTextPrompt function with retry logic
+    function processTextPrompt(prompt, callback, retryCount = 0) {
+        var maxRetries = 3;
         var promptTextarea = document.querySelector('.description_wrap textarea');
         if(!promptTextarea) {
             alert('Could not find prompt textarea on the page.');
@@ -605,14 +630,31 @@
 
         waitForSubmitButton(function(submitButton) {
             submitButton.click();
-            // Now, we wait 10 seconds before proceeding to the next prompt (handled in processPrompts)
-            callback();
+            // Wait for potential error message
+            setTimeout(function() {
+                checkForErrorMessage(function(hasError) {
+                    if (hasError) {
+                        if (retryCount < maxRetries) {
+                            console.log('Error occurred. Retrying prompt in 3 seconds. Retry count: ' + (retryCount + 1));
+                            setTimeout(function() {
+                                processTextPrompt(prompt, callback, retryCount + 1);
+                            }, 3000);
+                        } else {
+                            console.log('Max retries reached for this prompt. Moving to next prompt.');
+                            callback();
+                        }
+                    } else {
+                        // Proceed to the next prompt
+                        callback();
+                    }
+                });
+            }, 3000);
         });
     }
 
-    // Updated processImagePrompt function
+    // Updated processImagePrompt function with submission error handling
     function processImagePrompt(item, callback, retryCount = 0) {
-        var maxRetries = 10;
+        var maxRetries = 3;
         var promptTextarea = document.querySelector('.description_wrap textarea');
         if (!promptTextarea) {
             alert('Could not find prompt textarea on the page.');
@@ -720,23 +762,19 @@
         }
     }
 
-    // Function to reveal the upload pane
-    function revealUploadPane(callback, retryCount = 0) {
-        var maxRetries = 10;
-        var uploadTrigger = document.querySelector('.relative.mr-2.cursor-pointer.group');
-        if (uploadTrigger) {
-            uploadTrigger.click();
-            setTimeout(callback, 500); // Adjust delay if necessary
+    // Updated revealUploadPane function
+    function revealUploadPane(callback) {
+        // Updated selector to match the new element
+        var uploadPaneOpener = document.querySelector('span.inline-block.group-hover\\:hidden');
+        if (uploadPaneOpener) {
+            uploadPaneOpener.click();
+            // Wait for the upload pane to appear
+            setTimeout(function() {
+                callback();
+            }, 1000); // Adjust the delay if necessary
         } else {
-            if (retryCount < maxRetries) {
-                console.log('Upload trigger not found. Retrying to open upload pane. Retry count: ' + (retryCount + 1));
-                setTimeout(function() {
-                    revealUploadPane(callback, retryCount + 1);
-                }, 1000);
-            } else {
-                alert('Could not find the image upload trigger after multiple attempts.');
-                callback(false);
-            }
+            alert('Could not find the button to open the upload pane.');
+            startButton.disabled = false;
         }
     }
 
