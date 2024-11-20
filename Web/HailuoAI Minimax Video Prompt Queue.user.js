@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HailuoAI Minimax Video Prompt Queue and Bulk Download
 // @namespace    http://tampermonkey.net/
-// @version      3.13
+// @version      3.15
 // @description  Allows queuing multiple prompts and images for HailuoAI Video generator and adds bulk download functionality with enhanced queue control features. Visit https://github.com/BillarySquintin/Billy_Scripts/
 // @author       Billary
 // @match        https://hailuoai.video/*
@@ -89,6 +89,11 @@
     pauseAllButton.style.cursor = "pointer";
     pauseAllButton.style.margin = '0 5px';
     buttonContainer.appendChild(pauseAllButton);
+
+    // Function to generate a random delay between min and max milliseconds
+    function getRandomDelay(minMs, maxMs) {
+        return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+    }
 
     // Variable to track autoplay state
     let isAutoplayEnabled = true;
@@ -431,15 +436,15 @@
     }
 
     // Function to check for the specific error message
-    function checkForErrorMessage(callback) {
-        // Check for the error message element
-        var errorMessageElement = document.querySelector('div.adm-auto-center-content');
-        if (errorMessageElement && errorMessageElement.textContent.includes('An error occurred while generating the content, please try again')) {
-            callback(true);
-        } else {
-            callback(false);
-        }
-    }
+    //function checkForErrorMessage(callback) {
+    //    // Check for the error message element
+    //    var errorMessageElement = document.querySelector('div.adm-auto-center-content');
+    //    if (errorMessageElement && errorMessageElement.textContent.includes('An error occurred while generating the content, please try again')) {
+    //        callback(true);
+    //    } else {
+    //        callback(false);
+    //    }
+    //}
 
     function processJsonEntry(entry) {
         if (entry.filename && entry.prompt) {
@@ -471,7 +476,7 @@
         element.dispatchEvent(event);
     }
 
-    // Function to process prompts
+    // Updated processPrompts function with random delay
     function processPrompts() {
         // If paused or holding, wait and retry
         if (isPaused || isHolding) {
@@ -513,15 +518,19 @@
             if (item.type === 'text') {
                 processTextPrompt(item.content, function() {
                     currentPromptNumber++;
-                    // Wait 10 seconds before proceeding to the next prompt
-                    setTimeout(processPrompts, 10000);
+                    // Wait between 10 and 45 seconds before proceeding to the next prompt
+                    var delay = getRandomDelay(10000, 45000);
+                    console.log('Waiting for ' + (delay / 1000) + ' seconds before processing the next prompt.');
+                    setTimeout(processPrompts, delay);
                 });
             } else if (item.type === 'image') {
                 revealUploadPane(function() {
                     processImagePrompt(item, function() {
                         currentPromptNumber++;
-                        // Wait 10 seconds before proceeding to the next prompt
-                        setTimeout(processPrompts, 10000);
+                        // Wait between 10 and 45 seconds before proceeding to the next prompt
+                        var delay = getRandomDelay(10000, 45000);
+                        console.log('Waiting for ' + (delay / 1000) + ' seconds before processing the next prompt.');
+                        setTimeout(processPrompts, delay);
                     });
                 });
             }
@@ -538,55 +547,11 @@
 
             var submitButtonLoading = document.querySelector('img[src="/assets/img/dark-loading.png"]');
 
-            var queueReady = false;
             var submitButtonReady = false;
 
-            var currentQueueSize = 0;
-            var maxQueueSize = 5; // Default to 5 if not found
-
-            // First, try to get the queue size from the queue counter
-            var queueTextElements = document.querySelectorAll('div.bg-clip-text');
-            var queueTextElement = null;
-            for (var i = 0; i < queueTextElements.length; i++) {
-                var text = queueTextElements[i].textContent.trim();
-                if (/^\d+\s*\/\s*\d+$/.test(text)) {
-                    queueTextElement = queueTextElements[i];
-                    break;
-                }
-            }
-
-            if (queueTextElement) {
-                var queueText = queueTextElement.textContent.trim(); // Should be in the format "2/5"
-                var match = queueText.match(/(\d+)\s*\/\s*(\d+)/);
-                if (match) {
-                    currentQueueSize = parseInt(match[1], 10);
-                    maxQueueSize = parseInt(match[2], 10);
-                    if (currentQueueSize < maxQueueSize) {
-                        queueReady = true;
-                    } else {
-                        console.log('Queue is full (' + currentQueueSize + '/' + maxQueueSize + '). Waiting...');
-                    }
-                } else {
-                    console.error('Unable to parse queue size from text:', queueText);
-                    // Proceed to check number of loading videos
-                }
-            } else {
-                console.log('Queue text element not found. Will check loading videos.');
-                // Proceed to check number of loading videos
-            }
-
-            // If queueReady is not set yet, check number of loading videos
-            if (!queueReady) {
-                // Count number of loading video elements
-                var loadingVideos = document.querySelectorAll('.creating-progress');
-                currentQueueSize = loadingVideos.length;
-                maxQueueSize = 5; // Assuming max queue size is 5
-                if (currentQueueSize < maxQueueSize) {
-                    queueReady = true;
-                } else {
-                    console.log('Queue is full based on loading videos (' + currentQueueSize + '/' + maxQueueSize + '). Waiting...');
-                }
-            }
+            var queueCounterFound = false;
+            var queueTextCurrentSize = 0;
+            var queueTextMaxSize = 5; // Default to 5 if not found
 
             // Check if submit button is not loading
             if (!submitButtonLoading) {
@@ -595,13 +560,72 @@
                 console.log('Submit button is loading. Waiting...');
             }
 
-            // Proceed if both conditions are met
-            if (queueReady && submitButtonReady) {
+            // Try to get queue size from the queue counter
+            var queueCounterElements = document.querySelectorAll('div.bg-clip-text');
+
+            queueCounterElements.forEach(function(element) {
+                var textContent = element.textContent.replace(/\s+/g, '');
+                var numbers = textContent.match(/\d+/g);
+
+                if (numbers && numbers.length === 2) {
+                    queueTextCurrentSize = parseInt(numbers[0], 10);
+                    queueTextMaxSize = parseInt(numbers[1], 10);
+                    queueCounterFound = true;
+                }
+            });
+
+            // If we didn't find the counter with numbers, try to get queue size from the message text
+            if (!queueCounterFound) {
+                var messageElement = document.querySelector('div.font-medium');
+                if (messageElement) {
+                    var messageText = messageElement.textContent.trim();
+                    var match = messageText.match(/(\d+)\s+jobs\s+in\s+queue/);
+                    if (match) {
+                        queueTextCurrentSize = parseInt(match[1], 10);
+                        queueTextMaxSize = 5; // Assuming max queue size is 5
+                        queueCounterFound = true;
+                    } else if (messageText.includes('you can queue')) {
+                        // Assuming queue is empty when the message says 'you can queue 5 jobs at once'
+                        queueTextCurrentSize = 0;
+                        queueTextMaxSize = 5;
+                        queueCounterFound = true;
+                    }
+                } else {
+                    console.log('Queue message element not found.');
+                }
+            }
+
+            // Count number of queued videos (waiting to be processed) by class 'video-gen-loading'
+            var queuedVideoElements = document.querySelectorAll('div.video-gen-loading');
+            var queuedVideoCount = queuedVideoElements.length;
+
+            // Count number of processing videos (currently being processed) by elements with 'role="progressbar"'
+            var processingVideoElements = document.querySelectorAll('[role="progressbar"]');
+            var processingVideoCount = processingVideoElements.length;
+
+            // Output the counts for debugging
+            console.log('Submit button ready:', submitButtonReady);
+            console.log('Queue counter found:', queueCounterFound);
+            console.log('Queue counter size:', queueTextCurrentSize + '/' + queueTextMaxSize);
+            console.log('Queued video count:', queuedVideoCount);
+            console.log('Processing video count:', processingVideoCount);
+
+            // Decide on the current queue size
+            var totalQueueSize = queuedVideoCount + processingVideoCount;
+            var maxQueueSize = Math.max(queueTextMaxSize, 5);
+
+            if (totalQueueSize < maxQueueSize && submitButtonReady) {
                 clearInterval(checkQueue);
-                callback();
+                // Wait for a random delay before proceeding
+                var delay = getRandomDelay(10000, 45000);
+                console.log('Waiting for ' + (delay / 1000) + ' seconds before submitting the next prompt.');
+                setTimeout(callback, delay);
+            } else {
+                console.log('Queue is full (' + totalQueueSize + '/' + maxQueueSize + ') or submit button not ready. Waiting...');
             }
         }, 2000);
     }
+
 
 
     // Function to check for error messages
@@ -1064,7 +1088,7 @@
         });
     });
 
-    // Function to process videos on the page with delay
+    // Updated processVideos function with random delay
     function processVideos(callback) {
         // Array to hold the video data
         let videoDataArray = [];
@@ -1078,7 +1102,7 @@
             return;
         }
 
-        // Helper function to process each video element with delay
+        // Helper function to process each video element with random delay
         function processVideoElement(index) {
             if (index >= videoElements.length) {
                 // All videos processed, save the data and call the callback
@@ -1122,9 +1146,13 @@
                         });
                     }
 
-                    // Move to the next video after a 500ms delay
-                    processVideoElement(index + 1);
-                }, 500); // 500ms delay for each video
+                    // Move to the next video after a random delay between 500ms and 2500ms
+                    var delay = getRandomDelay(500, 2500);
+                    console.log('Waiting for ' + delay + ' milliseconds before processing the next video.');
+                    setTimeout(function() {
+                        processVideoElement(index + 1);
+                    }, delay);
+                }, 500); // Initial 500ms delay after clicking download button
             } else {
                 console.log('Download button not found for a video.');
                 // Move to the next video immediately if no download button
@@ -1136,7 +1164,7 @@
         processVideoElement(0);
     }
 
-    // Function to process selected videos
+    // Updated processSelectedVideos function with random delay
     function processSelectedVideos(callback) {
         // Array to hold the video data
         let videoDataArray = [];
@@ -1154,7 +1182,7 @@
             return;
         }
 
-        // Helper function to process each video element with delay
+        // Helper function to process each video element with random delay
         function processVideoElement(index) {
             if (index >= selectedVideoElements.length) {
                 // All videos processed, save the data and call the callback
@@ -1198,9 +1226,13 @@
                         });
                     }
 
-                    // Move to the next video after a 500ms delay
-                    processVideoElement(index + 1);
-                }, 500); // 500ms delay for each video
+                    // Move to the next video after a random delay between 500ms and 2500ms
+                    var delay = getRandomDelay(500, 2500);
+                    console.log('Waiting for ' + delay + ' milliseconds before processing the next video.');
+                    setTimeout(function() {
+                        processVideoElement(index + 1);
+                    }, delay);
+                }, 500); // Initial 500ms delay after clicking download button
             } else {
                 console.log('Download button not found for a video.');
                 // Move to the next video immediately if no download button
