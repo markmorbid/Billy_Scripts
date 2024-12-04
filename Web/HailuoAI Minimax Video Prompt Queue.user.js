@@ -5,11 +5,12 @@
 // @description  Allows queuing multiple prompts and images for HailuoAI Video generator and adds bulk download functionality with enhanced queue control features. Visit https://github.com/BillarySquintin/Billy_Scripts/
 // @author       Billary
 // @match        https://hailuoai.video/*
-// @downloadURL  https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
-// @updateURL    https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20with%20Image%20Support.user.js
 // @grant        none
 // @license MIT
+// @downloadURL https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20and%20Bulk%20Download.user.js
+// @updateURL https://update.greasyfork.org/scripts/512177/HailuoAI%20Minimax%20Video%20Prompt%20Queue%20and%20Bulk%20Download.meta.js
 // ==/UserScript==
+
 
 (function() {
     'use strict';
@@ -617,7 +618,7 @@
             if (totalQueueSize < maxQueueSize && submitButtonReady) {
                 clearInterval(checkQueue);
                 // Wait for a random delay before proceeding
-                var delay = getRandomDelay(10000, 45000);
+                var delay = getRandomDelay(100, 1000);
                 console.log('Waiting for ' + (delay / 1000) + ' seconds before submitting the next prompt.');
                 setTimeout(callback, delay);
             } else {
@@ -1147,12 +1148,12 @@
                     }
 
                     // Move to the next video after a random delay between 500ms and 2500ms
-                    var delay = getRandomDelay(500, 2500);
+                    var delay = getRandomDelay(100, 500);
                     console.log('Waiting for ' + delay + ' milliseconds before processing the next video.');
                     setTimeout(function() {
                         processVideoElement(index + 1);
                     }, delay);
-                }, 500); // Initial 500ms delay after clicking download button
+                }, 100); // Initial 500ms delay after clicking download button
             } else {
                 console.log('Download button not found for a video.');
                 // Move to the next video immediately if no download button
@@ -1198,7 +1199,7 @@
             let prompt = promptElement ? promptElement.textContent.trim() : '';
 
             // Get the download button
-            let downloadButton = videoElement.querySelector('div.flex.items-center.mb-2\\.5.cursor-pointer');
+            let downloadButton = videoElement.querySelector('.relative.z-50.p-4.pb-2.flex.items-center.gap-2 button:nth-child(2)');
 
             if (downloadButton) {
                 // Simulate a click on the download button to trigger the download logic
@@ -1227,7 +1228,7 @@
                     }
 
                     // Move to the next video after a random delay between 500ms and 2500ms
-                    var delay = getRandomDelay(500, 2500);
+                    var delay = getRandomDelay(100, 200);
                     console.log('Waiting for ' + delay + ' milliseconds before processing the next video.');
                     setTimeout(function() {
                         processVideoElement(index + 1);
